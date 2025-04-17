@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mountain Runner Game</title>
+  <style>
+    body {
+      margin: 0;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: sans-serif;
+    }
+
+    #gameCanvas {
+      background: url('https://t3.ftcdn.net/jpg/07/26/96/04/360_F_726960402_pT9ovxJXrATE51rDp0BfL2pAir8ursBN.jpg') repeat-x bottom;
+      background-size: cover;
+      border: 2px solid #333;
+    }
+
+    #pauseButton {
+      margin-top: 10px;
+      padding: 8px 16px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation link to return to home page -->
+  <a href="scratch.html" style="margin-bottom: 10px; font-size: 16px; text-decoration: none; color: #007BFF;">&larr; Back to Home</a>
+
+  <!-- Game display canvas -->
+  <canvas id="gameCanvas" width="900" height="300"></canvas>
+
+  <!-- Pause/resume button -->
+  <button id="pauseButton">Pause</button>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const pauseButton = document.getElementById("pauseButton");
+
+    const gravity = 0.6; // gravity force applied to jumping
+
+    // Character object with properties
+    let character = {
+      x: 50,
+      y: canvas.height - 60,
+      width: 40,
+      height: 50,
+      dy: 0, // vertical velocity
+      jumping: false
+    };
+
+    let obstacles = []; // list of current obstacles
+    let speed = 6; // game speed / obstacle movement
+    let spawnTimer = 0; // counter for spawning new obstacles
+    let score = 0; // current player score
+    let gameStarted = false; // flag to track when player first jumps
+    let paused = false; // pause state toggle
+    let gameOver = false;
+
+    // Fallback image flag
+    let useFallbackCharacter = true;
+
+    // Load player image (optional)
+    const characterImg = new Image();
+    characterImg.onload = () => {
+      useFallbackCharacter = false;
+    };
+    characterImg.onerror = () => {
+      console.warn("Character image failed to load. Using fallback rectangle.");
+    };
+    characterImg.src = "assets/img/cadensprite.png"; // Update with your own image path
+
+    // Draw character using image or fallback
+    function drawCharacter() {
+      if (!useFallbackCharacter) {
+        ctx.drawImage(characterImg, character.x, character.y, character.width, character.height);
+      } else {
+        ctx.fillStyle = "#222";
+        ctx.fillRect(character.x, character.y, character.width, character.height);
+      }
+    }
+
+    // Create a new random obstacle
+    function createObstacle() {
+      const types = ["rock", "bush", "snake"];
+      const type = types[Math.floor(Math.random() * types.length)];
+
+      // Different types have different heights
+      let height = 30;
+      if (type === "bush") height = 40;
+      if (type === "snake") height = 20;
+
+      // Add obstacle to list
+      obstacles.push({
+        x: canvas.width,
+        y: canvas.height - height,
+        width: 30,
+        height: height,
+        type: type
+      });
+    }
+
+    // Draw all current obstacles
+    function drawObstacles() {
+      obstacles.forEach((obstacle) => {
+        // Set obstacle color based on type
+        if (obstacle.type === "rock") ctx.fillStyle = "gray";
+        if (obstacle.type === "bush") ctx.fillStyle = "green";
+        if (obstacle.type === "snake") ctx.fillStyle = "brown";
+
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+      });
+    }
+
+    // Move obstacles left and check for collisions
+    function updateObstacles() {
+      for (let i = 0; i < obstacles.length; i++) {
+        obstacles[i].x -= speed;
+
+        // Simple AABB collision detection
+        if (
+            character.x < obstacles[i].x + obstacles[i].width &&
+            character.x + character.width > obstacles[i].x &&
+            character.y < obstacles[i].y + obstacles[i].height &&
+            character.y + character.height > obstacles[i].y
+            ) {
+            gameOver = true;
+            alert("Game Over! Score: " + score);
+            document.location.reload();
+        }
+      }
+      // Remove obstacles that moved off-screen
+      obstacles = obstacles.filter(ob => ob.x + ob.width > 0);
+    }
+
+    // Apply gravity and update character vertical motion
+    function updateCharacter() {
+      character.y += character.dy;
+
+      if (character.y + character.height < canvas.height) {
+        character.dy += gravity;
+        character.jumping = true;
+      } else {
+        character.dy = 0;
+        character.jumping = false;
+        character.y = canvas.height - character.height;
+      }
+    }
+
+    // Main animation loop
+    function gameLoop() {
+        if (gameOver) return; // stop the loop if game is over
+
+        if (!paused) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawCharacter();
+            drawObstacles();
+            updateCharacter();
+            updateObstacles();
+
+            spawnTimer++;
+            if (spawnTimer > 80) {
+            createObstacle();
+            spawnTimer = 0;
+            }
+
+            if (gameStarted) score++;
+            ctx.fillStyle = "white";
+            ctx.font = "18px Arial";
+            ctx.fillText("Score: " + score, 20, 30);
+        }
+
+        requestAnimationFrame(gameLoop); // keep looping
+    }
+
+    // Jumping when space bar is pressed
+    document.addEventListener("keydown", function (e) {
+      if (e.code === "Space" && !character.jumping) {
+        character.dy = -12; // upward impulse
+        gameStarted = true; // mark game as started on first jump
+      }
+    });
+
+    // Toggle pause/resume button
+    pauseButton.addEventListener("click", function () {
+      paused = !paused;
+      pauseButton.textContent = paused ? "Resume" : "Pause";
+    });
+
+    gameLoop(); // start the game
+  </script>
+</body>
+</html>
